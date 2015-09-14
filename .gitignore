@@ -1,0 +1,5 @@
+.git
+.idea
+handball.sqlite
+*.pyc
+pymodel/README.md
