@@ -9,49 +9,100 @@ MINUS = 'minus.gif'
 __author__ = 'roberto'
 
 
+def segnapunto(punteggi_giocatori, nome_giocatore, codice_evento, delta=1):
+
+    def fx():
+        obj_gui = punteggi_giocatori[(nome_giocatore, codice_evento)]
+        punti = int(obj_gui.cget('text'))
+        punti += delta
+        if punti < 0:
+            punti = 0
+        obj_gui.config(text=punti)
+
+    return fx
+
+
 def popola_giocatori(conndb, finestra, partita, combo_partita):
     eventi = Evento(conndb).collection(orderby='position ASC')
     minus = PhotoImage(file=MINUS)
+    pixel = PhotoImage(file='pixel.gif')
+
+    oggetti_gui = list()
+    punteggi_giocatori = dict()
 
     def fx(tk_event):
+        print len(oggetti_gui)
+        while oggetti_gui:  # vuota la finestra dei cotnrolli qui creati
+            oggetti_gui.pop().destroy()
+        while punteggi_giocatori:  # vuota i punteggi giocatori
+            fk = punteggi_giocatori.keys()[0]
+            punteggi_giocatori.pop(fk)
         model_partita = Partita(conndb).load(combo_partita[partita.get()])
-        print combo_partita[partita.get()], model_partita.get_data()
+        # print combo_partita[partita.get()], model_partita.get_data()
         # squadra = Squadra(conndb).load(model_partita.get('squadra'))
         giocatori = Giocatore(conndb).collection(where_sql="squadra = ?", vals=(model_partita.get('squadra'), ))
-        Label(finestra, text='Nome').grid(row=1, column=0)
-        Label(finestra, text='Ruolo', background='white').grid(row=1, column=1, sticky=W + E + N + S)
+        l = Label(finestra, text='Nome')
+        l.grid(row=1, column=0)
+        oggetti_gui.append(l)
+        l = Label(finestra, text='Ruolo', background='white')
+        l.grid(row=1, column=1, sticky=W + E + N + S)
+        oggetti_gui.append(l)
         first = True
         moltiplicatore = 3
         ox, oy = 2, 2
         for y, giocatore in enumerate(giocatori):
-            Label(finestra, text=giocatore['nome']).grid(row=y + oy, column=0)
-            Label(finestra, text=giocatore['ruolo'], background='white').grid(row=y + oy, column=1,
-                                                                              sticky=W + E + N + S)
+            l = Label(finestra, text=giocatore['nome'])
+            l.grid(row=y * 2 + oy, column=0, rowspan=2)
+            oggetti_gui.append(l)
+            l = Label(finestra, text=giocatore['ruolo'], background='white')
+            l.grid(row=y * 2 + oy, column=1, rowspan=2, sticky=W + E + N + S)
+            oggetti_gui.append(l)
             for x, evento in enumerate(eventi):
-                print evento
+                # print evento
                 if first:
                     # label degli eventi
-                    Label(finestra,
-                          text=evento['nome'],
-                          background=evento.get('colore_fondo', '')
-                    ).grid(row=1, column=ox + (x * moltiplicatore), sticky=W + E + N + S, columnspan=2)
-                    Label(finestra, text=" ", background='black').grid(row=1, column=ox + (x * moltiplicatore) + 2,
-                                                                       sticky=W + E + N + S)
+                    l = Label(finestra,
+                              text=evento['nome'],
+                              background=evento.get('colore_fondo', '')
+                    )
+                    l.grid(row=1, column=ox + (x * moltiplicatore), sticky=W + E + N + S, columnspan=moltiplicatore - 1)
+                    oggetti_gui.append(l)
+                    l = Label(finestra,
+                              image=pixel,
+                              background='black',
+                              width=1)
+                    l.image = pixel
+                    l.grid(row=1, column=ox + (x * moltiplicatore) + 2, sticky=W + E + N + S, rowspan=2)
+                    oggetti_gui.append(l)
                 # bottoni degli eventi
                 gif = PhotoImage(file=evento.get('icona', 'ball.gif'))
-                Button(finestra,
-                       image=minus,
-                       background=evento.get('colore_fondo', '')
-                ).grid(row=y + oy, column=x * moltiplicatore + ox)
+                b = Button(finestra,
+                           image=minus,
+                           background=evento.get('colore_fondo', ''),
+                           command=segnapunto(punteggi_giocatori, giocatore['nome'], evento['codice'], -1)
+                )
+                b.grid(row=y * 2 + oy, column=x * moltiplicatore + ox, sticky=E + W)
+                b.minus = minus
+                oggetti_gui.append(b)
                 b = Button(finestra,
                            image=gif,
-                           background=evento.get('colore_fondo', '')
+                           background=evento.get('colore_fondo', ''),
+                           command=segnapunto(punteggi_giocatori, giocatore['nome'], evento['codice'])
                 )
-                b.grid(row=y + oy, column=x * moltiplicatore + ox + 1)
+                b.grid(row=y * 2 + oy, column=x * moltiplicatore + ox + 1, sticky=E + W)
                 b.image = gif
-                b.minus = minus
-                Label(finestra, text=" ", background='black').grid(row=y + oy, column=x * moltiplicatore + ox + 2,
-                                                                   sticky=W + E + N + S)
+                oggetti_gui.append(b)
+                punti = get_punti(partita,giocatore,evento)
+                l = Label(finestra,
+                          text = punti,
+                          background=evento.get('colore_fondo', '')
+                )
+                l.grid(row=y * 2 + oy + 1, column=x * moltiplicatore + ox, sticky=W + E + N + S, columnspan=2)
+                oggetti_gui.append(l)
+                punteggi_giocatori[(giocatore['nome'], evento['codice'])] = l
+                l = Label(finestra, image=pixel, width=1, background='black')
+                l.grid(row=y * 2 + oy, column=x * moltiplicatore + ox + 2, sticky=W + E + N + S, rowspan=2)
+                oggetti_gui.append(l)
             first = False
 
     return fx
@@ -59,18 +110,6 @@ def popola_giocatori(conndb, finestra, partita, combo_partita):
 
 def crea_finestra(conndb, root, finestre, destroy):
     nome_finestra = 'Registra Partita'
-
-    def gui_factory(e, finestra):
-        if e == 'squadra':
-            entry = ttk.Combobox(finestra)
-            entry['values'] = Squadra(conndb).collection_keys()
-        elif e == 'ruolo':
-            entry = ttk.Combobox(finestra)
-            entry['values'] = ['-', 'portiere']
-        else:
-            entry = Entry(finestra)
-        return entry
-
 
     def fx():
         if nome_finestra not in finestre:
@@ -97,7 +136,7 @@ def crea_finestra(conndb, root, finestre, destroy):
             # if values:
             # partita.insert(0, values[-1])
             # partita.current(0)
-            partita.grid(row=0, column=1, columnspan=6)
+            partita.grid(row=0, column=1, columnspan=12)
             partita.bind("<<ComboboxSelected>>", popola_giocatori(conndb, finestra, partita, combo_partita))
 
 

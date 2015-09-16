@@ -31,7 +31,7 @@ class Evento(pymodel.abstract.Abstract):
 
 # _field_managers = {'info': json}
 class DettaglioPartita(pymodel.abstract.Abstract):
-    _tablename = 'dettalio_partite'
+    _tablename = 'dettaglio_partite'
     _chiave = 'id'
     _tipo_chiave = 'INTEGER'
     _autoincrement = 'AUTOINCREMENT'

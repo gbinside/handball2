@@ -149,13 +149,7 @@ def crea_finestra_tabelle(nome_finestra, classe_db):
     return fx
 
 
-def main(argv):
-    global conndb
-    global root
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-    conndb = pymodel.abstract.create_sqlite_connection('handball.sqlite')
-
+def schema(conndb):
     if len(Evento(conndb).collection_keys()) == 0:
         Evento(conndb).set('codice', 'ed') \
             .set('nome', 'errore difesa') \
@@ -243,6 +237,7 @@ def main(argv):
         ).save()
     if len(Squadra(conndb).collection_keys()) == 0:
         Squadra(conndb).set_data(nome='casalgrande', genere='maschile').save()
+        Squadra(conndb).set_data(nome='pratisollo', genere='maschile').save()
     if len(Giocatore(conndb).collection_keys()) == 0:
         Giocatore(conndb).set_data(nome='prova 1',
                                    squadra='casalgrande',
@@ -264,21 +259,43 @@ def main(argv):
                                    numero='03',
                                    ruolo='portiere'
         ).save()
+        Giocatore(conndb).set_data(nome='prova 5',
+                                   squadra='pratissolo',
+                                   numero='00',
+                                   ruolo='-'
+        ).save()
     if len(Partita(conndb).collection_keys()) == 0:
+            #.set('risultato_primo_tempo', '0-0') \
+           # .set('risultato_secondo_tempo', '0-0') \
         Partita(conndb).set('squadra', 'casalgrande') \
             .set('altra_squadra', 'montegrotto') \
             .set('data', '01-01-2015') \
-            .set('risultato_primo_tempo', '0-0') \
-            .set('risultato_secondo_tempo', '0-0') \
             .set('risultato_finale', '0-0') \
+            .set('timer', '00:00') \
+            .save()
+        Partita(conndb).set('squadra', 'pratissolo') \
+            .set('altra_squadra', 'montegrotto') \
+            .set('data', '01-02-2015') \
+            .set('risultato_finale', '0-0') \
+            .set('timer', '00:00') \
             .save()
     if len(DettaglioPartita(conndb).collection_keys()) == 0:
         DettaglioPartita(conndb).set_data(id_partita=1,
                                           giocatore='prova giocatore',
                                           evento='goal6',
-                                          time='00:00',
-                                          tempo="primo"
+                                          time='00:00'
+                           #               tempo="primo"
         ).save()
+
+
+def main(argv):
+    global conndb
+    global root
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    conndb = pymodel.abstract.create_sqlite_connection('handball.sqlite')
+
+    schema(conndb)
 
     root = Tk()  # main window
     root.geometry('+100+100')
