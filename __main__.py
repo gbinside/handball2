@@ -1,48 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-
+from core.models import Squadra, Giocatore, Partita, Evento, DettaglioPartita
+import core.registra_partita
 import pymodel.abstract
+
 import tkMessageBox
 from Tkinter import *
+import ttk
 import sys
 import os
 
-TEMPI = ('primo', 'secondo')
+finestre = {}
 conndb = None
-finestra_squadre = None
-
-
-class Squadra(pymodel.abstract.Abstract):
-    _tablename = 'squadre'
-    _chiave = 'nome'
-    _tipo_chiave = 'VARCHAR(255)'
-
-
-class Giocatore(pymodel.abstract.Abstract):
-    _tablename = 'giocatori'
-    _chiave = 'nome'
-    _tipo_chiave = 'VARCHAR(255)'
-
-
-class Partita(pymodel.abstract.Abstract):
-    _tablename = 'partite'
-    _chiave = 'id'
-    _tipo_chiave = 'INTEGER'
-    _autoincrement = 'AUTOINCREMENT'
-
-
-class Evento(pymodel.abstract.Abstract):
-    _tablename = 'eventi'
-    _chiave = 'codice'
-    _tipo_chiave = 'VARCHAR(255)'
-
-
-# _field_managers = {'info': json}
-class DettaglioPartita(pymodel.abstract.Abstract):
-    _tablename = 'dettalio_partite'
-    _chiave = 'id'
-    _tipo_chiave = 'INTEGER'
-    _autoincrement = 'AUTOINCREMENT'
 
 
 def todo():
@@ -51,10 +20,9 @@ def todo():
 
 def destroy(o):
     def fx():
-        for k, v in globals().items():
+        for k, v in finestre.items():
             if v == o:
-                del globals()[k]
-                # globals()[k] == None
+                del finestre[k]
         o.grab_release()
         o.destroy()
 
@@ -73,6 +41,8 @@ def cancella_riga(finestra, classe, valore_chiave, switch):
 
 def salva_riga(finestra, classe, entries, switch):
     def fx():
+        if entries[0].get() == '' and entries[0].myfieldname != 'id':
+            return
         finestra.withdraw()
         model = classe(conndb)
         model.new()
@@ -81,7 +51,8 @@ def salva_riga(finestra, classe, entries, switch):
         except pymodel.abstract.RecordNotFoundException:
             pass
         for e in entries:
-            model.set(e.myfieldname, e.get())
+            if e.myfieldname != 'id':
+                model.set(e.myfieldname, e.get())
         model.save()
         destroy(finestra)()
         switch()
@@ -108,82 +79,74 @@ def salva(finestra, classe, entries, switch):
     return fx
 
 
-def switch_to_eventi():
-    global finestra_eventi
-    if 'finestra_eventi' not in globals():
-        finestra_eventi = Toplevel(root)
-        finestra_eventi.grab_set()
-        finestra_eventi.protocol("WM_DELETE_WINDOW", destroy(finestra_eventi))
-        finestra_eventi.geometry('+250+100')
-        finestra_eventi.wm_iconbitmap(bitmap='ball.ico')
-        finestra_eventi.title('Eventi')
-        s = Evento(conndb)
-        c = s.collection()
-        i = 0
-        for i, e in enumerate(c[0]):
-            Label(finestra_eventi, text=e).grid(row=1, column=i, sticky=W)
-        row = -1
-        entries = list()
-        for row, riga in enumerate(c):
-            row_entries = list()
-            for i, e in enumerate(riga):
-                # print e, riga
-                entry = Entry(finestra_eventi)
+def crea_finestra_tabelle(nome_finestra, classe_db):
+    def gui_factory(e, finestra):
+        if e == 'squadra':
+            entry = ttk.Combobox(finestra)
+            entry['values'] = Squadra(conndb).collection_keys()
+        elif e == 'ruolo':
+            entry = ttk.Combobox(finestra)
+            entry['values'] = ['-', 'portiere']
+        else:
+            entry = Entry(finestra)
+        return entry
+
+    def fx():
+        if nome_finestra not in finestre:
+            finestra = Toplevel(root)
+            finestre[nome_finestra] = finestra
+            finestra.grab_set()
+            finestra.protocol("WM_DELETE_WINDOW", destroy(finestra))
+            finestra.geometry('+250+100')
+            finestra.wm_iconbitmap(bitmap='ball.ico')
+            finestra.title(nome_finestra)
+            s = classe_db(conndb)
+            try:
+                c = s.collection(orderby='CAST(position AS decimal) ASC')
+            except pymodel.abstract.OperationalError:
+                c = s.collection()
+            i = 0
+            for i, e in enumerate(c[0]):
+                Label(finestra, text=e).grid(row=1, column=i, sticky=W)
+            row = -1
+            entries = list()
+            for row, riga in enumerate(c):
+                row_entries = list()
+                for i, e in enumerate(riga):
+                    # print e, riga
+                    entry = gui_factory(e, finestra)
+                    entry.myfieldname = e
+                    entry.insert(0, riga[e])
+                    if e == 'id':
+                        entry.config(state='readonly')
+                    entry.grid(row=2 + row, column=i, sticky=W)
+                    row_entries.append(entry)
+                entries.append(row_entries)
+                Button(finestra,
+                       text='Cancella',
+                       command=cancella_riga(finestra, classe_db, riga[classe_db.get_key()],
+                                             crea_finestra_tabelle(nome_finestra, classe_db))
+                ).grid(row=2 + row, column=i + 1)
+            Button(finestra,
+                   text='Salva',
+                   command=salva(finestra, classe_db, entries, crea_finestra_tabelle(nome_finestra, classe_db))) \
+                .grid(row=1, column=i + 1, sticky=N)
+            # nuova riga
+            new_entries = list()
+            for i, e in enumerate(c[0]):
+                entry = gui_factory(e, finestra)
+                entry.grid(row=row + 3, column=i, sticky=W)
                 entry.myfieldname = e
-                entry.insert(0, riga[e])
-                entry.grid(row=2 + row, column=i, sticky=W)
-                row_entries.append(entry)
-            entries.append(row_entries)
-            Button(finestra_eventi,
-                   text='Cancella',
-                   command=cancella_riga(finestra_eventi, Evento, riga[Evento.get_key()], switch_to_eventi)
-                   ).grid(row=2 + row, column=i + 1)
-        Button(finestra_eventi,
-               text='Salva',
-               command=salva(finestra_eventi, Evento, entries, switch_to_eventi)) \
-            .grid(row=1, column=i + 1, sticky=N)
+                if e == 'id':
+                    entry.config(state='readonly')
+                new_entries.append(entry)
+            Button(finestra,
+                   text='Aggiungi',
+                   command=salva_riga(finestra, classe_db, new_entries,
+                                      crea_finestra_tabelle(nome_finestra, classe_db))) \
+                .grid(row=3 + row, column=i + 1)
 
-        new_entries = list()
-        for i, e in enumerate(c[0]):
-            entry = Entry(finestra_eventi)
-            entry.grid(row=row + 3, column=i, sticky=W)
-            entry.myfieldname = e
-            new_entries.append(entry)
-        Button(finestra_eventi,
-               text='Aggiungi',
-               command=salva_riga(finestra_eventi, Evento, new_entries, switch_to_eventi))\
-            .grid(row=3 + row, column=i + 1)
-
-
-def switch_to_squadre():
-    global finestra_squadre
-    if 'finestra_squadre' not in globals() or finestra_squadre is None:
-        finestra_squadre = Toplevel(root)
-        finestra_squadre.grab_set()
-        finestra_squadre.protocol("WM_DELETE_WINDOW", destroy(finestra_squadre))
-        finestra_squadre.geometry('+250+100')
-        finestra_squadre.wm_iconbitmap(bitmap='ball.ico')
-        finestra_squadre.title('Squadre')
-        s = Squadra(conndb)
-        c = s.collection()
-        for i, e in enumerate(c[0]):
-            Label(finestra_squadre, text=e).grid(row=1, column=i, sticky=W)
-        row = -1
-        i = 0
-        for row, riga in enumerate(c):
-            for i, e in enumerate(riga):
-                # print e, riga
-                entry = Entry(finestra_squadre)
-                entry.insert(0, riga[e])
-                entry.grid(row=2 + row, column=i, sticky=W)
-            Button(finestra_squadre, text='Cancella',
-                   command=cancella_riga(finestra_squadre, Squadra, riga[Squadra.get_key()], switch_to_squadre)).grid(
-                row=2 + row,
-                column=i + 1)
-        for i, e in enumerate(c[0]):
-            e = Entry(finestra_squadre)
-            e.grid(row=row + 3, column=i, sticky=W)
-        Button(finestra_squadre, text='Aggiungi', command=todo).grid(row=3 + row, column=i + 1)
+    return fx
 
 
 def main(argv):
@@ -196,122 +159,139 @@ def main(argv):
     if len(Evento(conndb).collection_keys()) == 0:
         Evento(conndb).set('codice', 'ed') \
             .set('nome', 'errore difesa') \
-            .set('icona', 'cancel.ico') \
+            .set('icona', 'cancel.gif') \
             .set('colore_fondo', 'red') \
             .set('position', 10) \
             .save()
         Evento(conndb).set_data(codice='goal9',
                                 nome='GOAL9',
-                                icona='ball.ico',
+                                icona='ball.gif',
                                 colore_fondo='green',
                                 position=20
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='goal6',
                                 nome='GOAL6',
-                                icona='ball.ico',
+                                icona='ball.gif',
                                 colore_fondo='green',
                                 position=30
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='goalcontro',
                                 nome='GOAL C',
-                                icona='ball.ico',
+                                icona='ball.gif',
                                 colore_fondo='green',
                                 position=40
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='goalrigore',
                                 nome='GOAL R',
-                                icona='ball.ico',
+                                icona='ball.gif',
                                 colore_fondo='green',
                                 position=50
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='errore9',
                                 nome='ERRORE GOAL9',
-                                icona='cancel.ico',
+                                icona='cancel.gif',
                                 colore_fondo='red',
                                 position=60
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='errore6',
                                 nome='ERRORE GOAL6',
-                                icona='cancel.ico',
+                                icona='cancel.gif',
                                 colore_fondo='red',
                                 position=70
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='errorecontro',
                                 nome='ERRORE GOAL C',
-                                icona='cancel.ico',
+                                icona='cancel.gif',
                                 colore_fondo='red',
                                 position=80
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='errorerigorre',
                                 nome='ERRORE GOAL R',
-                                icona='cancel.ico',
+                                icona='cancel.gif',
                                 colore_fondo='red',
                                 position=90
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='pallarec',
                                 nome='PR',
-                                icona='angularbracket.ico',
+                                icona='angularbracket.gif',
                                 colore_fondo='white',
                                 position=100
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='erroretec',
                                 nome='ET',
-                                icona='cancel.ico',
+                                icona='cancel.gif',
                                 colore_fondo='red',
                                 position=110
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='ammonizione',
                                 nome='AM',
-                                icona='angularbrachet.ico',
+                                icona='angularbracket.gif',
                                 colore_fondo='yellow',
                                 position=120
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='2min',
                                 nome='2M',
-                                icona='angularbrachet.ico',
+                                icona='angularbracket.gif',
                                 colore_fondo='red',
                                 position=130
-                                ).save()
+        ).save()
         Evento(conndb).set_data(codice='assist',
                                 nome='AS',
-                                icona='angularbrachet.ico',
+                                icona='angularbracket.gif',
                                 colore_fondo='white',
                                 position=140
-                                ).save()
+        ).save()
     if len(Squadra(conndb).collection_keys()) == 0:
         Squadra(conndb).set_data(nome='casalgrande', genere='maschile').save()
     if len(Giocatore(conndb).collection_keys()) == 0:
-        Giocatore(conndb).set_data(nome='prova giocatore',
+        Giocatore(conndb).set_data(nome='prova 1',
                                    squadra='casalgrande',
                                    numero='00',
-                                   ruolo=''
-                                   ).save()
+                                   ruolo='-'
+        ).save()
+        Giocatore(conndb).set_data(nome='prova 2',
+                                   squadra='casalgrande',
+                                   numero='01',
+                                   ruolo='-'
+        ).save()
+        Giocatore(conndb).set_data(nome='prova 3',
+                                   squadra='casalgrande',
+                                   numero='02',
+                                   ruolo='-'
+        ).save()
+        Giocatore(conndb).set_data(nome='prova 4',
+                                   squadra='casalgrande',
+                                   numero='03',
+                                   ruolo='portiere'
+        ).save()
     if len(Partita(conndb).collection_keys()) == 0:
-        Partita(conndb).set_data(squadra='casalgrande',
-                                 altra_squadra='montegrotto',
-                                 data='01-01-2015',
-                                 risultato_primo_tempo='0-0',
-                                 risultato_secondo_tempo='0-0',
-                                 risultato_finale='0-0'
-                                 ).save()
+        Partita(conndb).set('squadra', 'casalgrande') \
+            .set('altra_squadra', 'montegrotto') \
+            .set('data', '01-01-2015') \
+            .set('risultato_primo_tempo', '0-0') \
+            .set('risultato_secondo_tempo', '0-0') \
+            .set('risultato_finale', '0-0') \
+            .save()
     if len(DettaglioPartita(conndb).collection_keys()) == 0:
         DettaglioPartita(conndb).set_data(id_partita=1,
                                           giocatore='prova giocatore',
                                           evento='goal6',
                                           time='00:00',
                                           tempo="primo"
-                                          ).save()
+        ).save()
 
     root = Tk()  # main window
     root.geometry('+100+100')
     root.wm_iconbitmap(bitmap='ball.ico')
     Label(root, text="Handball").pack(fill=X)
-    Button(root, text="Squadre", command=switch_to_squadre).pack(fill=X)
-    Button(root, text="Partite", command=switch_to_squadre).pack(fill=X)
-    Button(root, text="Giocatori", command=switch_to_squadre).pack(fill=X)
-    Button(root, text="Eventi", command=switch_to_eventi).pack(fill=X)
-    Button(root, text="Registra Partita", command=switch_to_squadre).pack(fill=X)
-    Button(root, text="Statistiche", command=switch_to_squadre).pack(fill=X)
+    Button(root, text="Squadre", command=crea_finestra_tabelle('Squadre', Squadra)).pack(fill=X)
+    Button(root, text="Partite", command=crea_finestra_tabelle('Partite', Partita)).pack(fill=X)
+    Button(root, text="Giocatori", command=crea_finestra_tabelle('Giocatori', Giocatore)).pack(fill=X)
+    Button(root, text="Eventi", command=crea_finestra_tabelle('Eventi', Evento)).pack(fill=X)
+    Button(root, text="Registra Partita",
+           command=core.registra_partita.crea_finestra(conndb, root, finestre, destroy)
+    ).pack(fill=X)
+    Button(root, text="Statistiche", command=todo).pack(fill=X)
     root.mainloop()
     return 0
 
