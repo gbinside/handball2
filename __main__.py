@@ -153,6 +153,7 @@ def schema(conndb):
     if len(Evento(conndb).collection_keys()) == 0:
         Evento(conndb).set('codice', 'ed') \
             .set('nome', 'errore difesa') \
+            .set('punti', 0) \
             .set('icona', 'cancel.gif') \
             .set('colore_fondo', 'red') \
             .set('position', 10) \
@@ -160,78 +161,91 @@ def schema(conndb):
         Evento(conndb).set_data(codice='goal9',
                                 nome='GOAL9',
                                 icona='ball.gif',
+                                punti=1,
                                 colore_fondo='green',
                                 position=20
         ).save()
         Evento(conndb).set_data(codice='goal6',
                                 nome='GOAL6',
                                 icona='ball.gif',
+                                punti=1,
                                 colore_fondo='green',
                                 position=30
         ).save()
         Evento(conndb).set_data(codice='goalcontro',
                                 nome='GOAL C',
                                 icona='ball.gif',
+                                punti=1,
                                 colore_fondo='green',
                                 position=40
         ).save()
         Evento(conndb).set_data(codice='goalrigore',
                                 nome='GOAL R',
                                 icona='ball.gif',
+                                punti=1,
                                 colore_fondo='green',
                                 position=50
         ).save()
         Evento(conndb).set_data(codice='errore9',
                                 nome='ERRORE GOAL9',
                                 icona='cancel.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=60
         ).save()
         Evento(conndb).set_data(codice='errore6',
                                 nome='ERRORE GOAL6',
                                 icona='cancel.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=70
         ).save()
         Evento(conndb).set_data(codice='errorecontro',
                                 nome='ERRORE GOAL C',
                                 icona='cancel.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=80
         ).save()
         Evento(conndb).set_data(codice='errorerigorre',
                                 nome='ERRORE GOAL R',
                                 icona='cancel.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=90
         ).save()
         Evento(conndb).set_data(codice='pallarec',
                                 nome='PR',
                                 icona='angularbracket.gif',
+                                punti=0,
                                 colore_fondo='white',
                                 position=100
         ).save()
         Evento(conndb).set_data(codice='erroretec',
                                 nome='ET',
                                 icona='cancel.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=110
         ).save()
         Evento(conndb).set_data(codice='ammonizione',
                                 nome='AM',
                                 icona='angularbracket.gif',
+                                punti=0,
                                 colore_fondo='yellow',
                                 position=120
         ).save()
         Evento(conndb).set_data(codice='2min',
                                 nome='2M',
                                 icona='angularbracket.gif',
+                                punti=0,
                                 colore_fondo='red',
                                 position=130
         ).save()
         Evento(conndb).set_data(codice='assist',
                                 nome='AS',
                                 icona='angularbracket.gif',
+                                punti=0,
                                 colore_fondo='white',
                                 position=140
         ).save()
@@ -265,8 +279,8 @@ def schema(conndb):
                                    ruolo='-'
         ).save()
     if len(Partita(conndb).collection_keys()) == 0:
-            #.set('risultato_primo_tempo', '0-0') \
-           # .set('risultato_secondo_tempo', '0-0') \
+        # .set('risultato_primo_tempo', '0-0') \
+        # .set('risultato_secondo_tempo', '0-0') \
         Partita(conndb).set('squadra', 'casalgrande') \
             .set('altra_squadra', 'montegrotto') \
             .set('data', '01-01-2015') \
@@ -281,10 +295,10 @@ def schema(conndb):
             .save()
     if len(DettaglioPartita(conndb).collection_keys()) == 0:
         DettaglioPartita(conndb).set_data(id_partita=1,
-                                          giocatore='prova giocatore',
+                                          giocatore='prova 1',
                                           evento='goal6',
                                           time='00:00'
-                           #               tempo="primo"
+                                          # tempo="primo"
         ).save()
 
 
