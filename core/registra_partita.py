@@ -95,7 +95,23 @@ def reset_timer(timer):
             starttime['start'] = time.time()
             timer.running = False
             timer.config(text="00:00")
+
     return fx
+
+
+def get_risultato(conndb, model_partita):
+    # @todo calcolare il punteggio altra_squadra
+    ret = 0
+    c = DettaglioPartita(conndb).collection(where_sql='id_partita = ?',
+                                            vals=(
+                                                model_partita.get(Partita.get_key()),
+                                            )
+    )
+    for rec in c:
+        e = Evento(conndb).load(rec['evento'])
+        ret += int(e.get('punti'))
+    return "%i - 0" % ret
+
 
 def popola_giocatori(conndb, finestra, partita, combo_partita):
     eventi = Evento(conndb).collection(orderby='position ASC')
@@ -145,6 +161,16 @@ def popola_giocatori(conndb, finestra, partita, combo_partita):
         oggetti_gui.append(button)
 
         # FINE TIMER
+
+        # RISULTATO
+        l = Label(finestra, text='Risultato :')
+        l.grid(row=0, column=23, columnspan=3)
+        oggetti_gui.append(l)
+        g = get_risultato(conndb, model_partita)
+        l = Label(finestra, text=g, bg='black', fg='red', font=("Helvetica", 16))
+        l.grid(row=0, column=26, columnspan=3)
+        oggetti_gui.append(l)
+        # FINE RISULTATO
 
         giocatori = Giocatore(conndb).collection(where_sql="squadra = ?", vals=(model_partita.get('squadra'), ))
         l = Label(finestra, text='Nome')
